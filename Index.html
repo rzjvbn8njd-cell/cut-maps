@@ -1,0 +1,220 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cut Maps</title>
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+:root{--card:#fff;--ink:#202124;--sub:#5f6368;--line:#dadce0;--acc:#1a73e8;--rt:#e8710a;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--card:#2b333b;--ink:#e8eaed;--sub:#9aa0a6;--line:#444b53;--acc:#8ab4f8}}
+:root[data-theme="dark"]{--card:#2b333b;--ink:#e8eaed;--sub:#9aa0a6;--line:#444b53;--acc:#8ab4f8}
+*{box-sizing:border-box}[hidden]{display:none!important}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;height:100%;background:#dfe7ec;color:var(--ink);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+button,select{font:inherit;color:inherit}
+#app{position:relative;height:100%;overflow:hidden}
+#map.maplibregl-map{position:absolute;inset:0}.maplibregl-canvas{position:absolute;left:0;top:0;touch-action:none}
+.maplibregl-marker{position:absolute;top:0;left:0;will-change:transform}
+.pin{width:30px;height:30px;border-radius:50%;background:var(--card);border:2px solid #2b7bd6;display:grid;place-items:center;font-size:15px;box-shadow:0 1px 5px #0005;cursor:pointer}
+.pin.sel{background:var(--acc);transform:scale(1.2)}
+.pin.sel::after{content:attr(data-n);position:absolute;top:32px;left:50%;transform:translateX(-50%);white-space:nowrap;background:var(--card);color:var(--ink);padding:2px 7px;border-radius:6px;font-size:12px;box-shadow:0 1px 4px #0004}
+.card{background:var(--card);box-shadow:0 2px 8px #0004}
+#top,#dir,#hud{position:absolute;top:10px;left:10px;right:10px;z-index:6}
+#sb{display:flex;align-items:center;gap:8px;height:48px;padding:0 8px 0 16px;border-radius:24px}
+#sb input{flex:1;min-width:0;border:0;background:none;color:var(--ink);font-size:16px;outline:0}
+.av{width:32px;height:32px;border-radius:50%;background:var(--acc);color:#fff;display:grid;place-items:center;font-weight:700}
+#res{margin-top:6px;border-radius:14px;overflow:hidden}
+#res div{padding:11px 16px;border-bottom:1px solid var(--line);display:flex;flex-direction:column}
+small,.sub{color:var(--sub)}
+#chips{display:flex;gap:8px;overflow-x:auto;padding:10px 0 4px;scrollbar-width:none}
+.chip{border:0;background:var(--card);border-radius:18px;padding:7px 13px;white-space:nowrap;box-shadow:0 1px 5px #0004}
+.chip.on,.row .on{background:var(--acc);color:#fff}
+#dir{padding:12px;border-radius:16px;display:grid;gap:8px}
+#dir label{display:grid;grid-template-columns:48px 1fr;align-items:center;color:var(--sub)}
+select{padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--card)}
+.r{display:flex;justify-content:space-between;align-items:center}
+button.x{border:0;background:none;font-size:18px}
+#fabs{position:absolute;right:12px;z-index:5;display:flex;flex-direction:column;gap:10px;transition:bottom .25s}
+.fab{width:46px;height:46px;border-radius:50%;border:0;background:var(--card);box-shadow:0 2px 8px #0005;font-size:20px}
+.fab.pri{background:var(--acc);color:#fff}
+#sheet{position:absolute;left:0;right:0;bottom:56px;z-index:7;max-height:58%;overflow:auto;background:var(--card);border-radius:18px 18px 0 0;padding:8px 18px 16px;box-shadow:0 -2px 12px #0004;transform:translateY(115%);transition:transform .25s}
+#sheet.on{transform:none}
+.grab{width:36px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 10px}
+h2{margin:0 0 2px;font-size:20px;font-weight:500}
+.row{display:flex;gap:8px;margin:12px 0}
+.row button{border:1px solid var(--line);background:none;border-radius:20px;padding:8px 14px}
+.row .pri{background:var(--acc);color:#fff;border-color:var(--acc)}
+.big b{font-size:22px;color:#188038;font-weight:500}
+ol{padding-left:20px;margin:8px 0}li{margin:6px 0}
+#nav{position:absolute;bottom:0;left:0;right:0;height:56px;z-index:8;display:flex;background:var(--card);border-top:1px solid var(--line)}
+#nav button{flex:1;border:0;background:none;color:var(--sub);font-size:12px}
+#nav button.on{color:var(--acc);font-weight:600}
+#toast{position:absolute;left:50%;bottom:130px;transform:translateX(-50%);background:#323232;color:#fff;padding:9px 16px;border-radius:8px;z-index:20;opacity:0;transition:.3s;pointer-events:none;max-width:90%;text-align:center}
+#hud{display:none;background:#0b6b3a;color:#fff;border-radius:14px;padding:12px 16px}#hud small{color:#d6f0e0}#hi{font-size:18px;font-weight:600}
+#eta{display:none;position:absolute;left:10px;right:10px;bottom:10px;z-index:7;border-radius:16px;padding:12px 16px;justify-content:space-between;align-items:center}
+#eta b{font-size:20px;color:#188038;font-weight:500}#ex{border:0;background:#d93025;color:#fff;border-radius:20px;padding:9px 18px}
+body.nav #hud{display:block}body.nav #eta{display:flex}body.nav #top,body.nav #dir,body.nav #nav,body.nav #sheet{display:none}
+#dev{position:absolute;left:10px;right:68px;bottom:70px;z-index:10;border-radius:14px;padding:10px 14px}body.nav #dev{bottom:84px}
+#dev label{display:flex;gap:8px;align-items:center;margin:6px 0}#dev input[type=range]{flex:1}#dev .row{margin:6px 0}
+#attr{position:absolute;left:6px;bottom:60px;z-index:3;font-size:10px;background:#fffc;color:#333;padding:1px 5px;border-radius:4px}
+</style></head><body><div id="app">
+<div id="map"></div><div id="attr">© OpenStreetMap · OpenFreeMap · CRT-style demo data</div>
+<div id="top"><div id="sb" class="card"><span>☰</span><input id="q" placeholder="Search the cut" autocomplete="off"><div class="av">C</div></div>
+<div id="res" class="card" hidden></div><div id="chips"></div></div>
+<div id="dir" class="card" hidden><div class="r"><b>⚓ Directions · 3 mph</b><button class="x" id="dx">✕</button></div>
+<label>From<select id="f"></select></label><label>To<select id="t"></select></label></div>
+<div id="hud" class="card"><div id="hi"></div><small id="hs"></small></div>
+<div id="eta" class="card"><div><b id="et"></b><br><small id="ed"></small></div><button id="ex">Exit</button></div>
+<div id="fabs"><button class="fab" id="dvb" aria-label="Dev mode">🛠</button><button class="fab" id="sty" aria-label="Map style">🗺️</button><button class="fab" id="loc" aria-label="My location">◎</button><button class="fab pri" id="gb" aria-label="Directions">➤</button></div>
+<div id="dev" class="card" hidden><div class="r"><b>🛠 Dev mode</b><button class="x" id="dvx">✕</button></div>
+<label><input type="checkbox" id="dsp"> Spoof GPS (tap map to place boat)</label>
+<label>Heading <input type="range" id="dh" min="0" max="359" value="0"><span id="dhv">0°</span></label>
+<label>Speed <select id="dv"><option value="1.34">3 mph</option><option value="6.7">15 mph (×5)</option><option value="26.8">60 mph (×20)</option></select></label>
+<div class="row"><button id="dc">▶ Cruise ahead</button><button id="dr">⤳ Follow route</button></div>
+<label>Teleport <select id="dtp"></select></label><small id="dro">No position yet</small></div>
+<div id="sheet"></div>
+<div id="nav"><button data-m="explore" class="on">🧭<br>Explore</button><button data-m="go">➤<br>Go</button><button data-m="saved">★<br>Saved</button></div>
+<div id="toast"></div></div>
+<script>
+const $=s=>document.querySelector(s);
+const T={lock:['🔒','Lock'],moor:['⚓','Mooring'],water:['🚰','Water & services'],pub:['🍺','Pub'],yard:['🔧','Boatyard'],tunnel:['🕳️','Tunnel'],junc:['🔀','Junction']};
+// id:[name,lat,lon,type,note] approximate demo data
+const P={
+hanw:['Hanwell Locks',51.511,-0.338,'lock','Flight of six locks.'],
+kg:['Kensal Green',51.529,-0.22,'water','Towpath moorings and facilities.'],
+lv:['Little Venice',51.5218,-0.1832,'junc','Grand Union meets the Regent’s Canal.'],
+pad:['Paddington Basin',51.5183,-0.175,'moor','Basin moorings.'],
+rp:['Regent’s Park',51.535,-0.153,'moor','Past the zoo. Short stays.'],
+cam:['Camden Lock',51.5415,-0.1465,'lock','Very busy lock by the market.'],
+stp:['St Pancras Lock',51.5369,-0.1286,'lock','Beside the gasholders.'],
+kx:['Granary Square',51.5355,-0.1245,'moor','Visitor moorings at King’s Cross.'],
+isl:['Islington Tunnel',51.534,-0.106,'tunnel','About 880 m. Lights on.'],
+nb:['The Narrow Boat',51.5334,-0.102,'pub','Canalside pub near City Road.'],
+crb:['City Road Basin',51.533,-0.0985,'water','Basin with towpath facilities.'],
+hag:['Haggerston',51.5385,-0.069,'moor','Popular towpath moorings.'],
+bm:['Broadway Market',51.5365,-0.061,'pub','Cafés and pubs by the towpath.'],
+vp:['Victoria Park',51.536,-0.045,'moor','Quiet moorings by the park.'],
+hu:['Hertford Union Junction',51.5372,-0.031,'junc','Turn here for the Lee.'],
+mile:['Mile End Lock',51.525,-0.033,'lock','Beside Mile End Park.'],
+lime:['Limehouse Basin',51.5115,-0.035,'yard','Marina and Thames gateway.'],
+cut1:['Limehouse Cut',51.519,-0.017,'moor','Straight cut to the Lee.'],
+bow:['Bow Locks',51.5265,-0.0105,'lock','Cut meets the Lee.'],
+lee0:['Old Ford Lock',51.5395,-0.019,'lock','Lee Navigation, Hackney Wick.'],
+clap:['Clapton',51.566,-0.053,'pub','Towpath pubs and marshes.'],
+tott:['Tottenham Hale',51.588,-0.054,'water','Water point and moorings.'],
+stam:['Stonebridge Lock',51.599,-0.056,'lock','Beside the reservoirs.'],
+enf:['Enfield Lock',51.67,-0.0295,'lock','Historic lock.'],
+wal:['Waltham Abbey',51.686,-0.002,'moor','Near the abbey.'],
+brox:['Broxbourne Marina',51.748,-0.011,'yard','Boatyard and moorings.'],
+hert:['Hertford Basin',51.7955,-0.076,'moor','End of the navigation.']};
+const W=[['Grand Union Canal',['hanw','kg','lv']],['Paddington Branch',['lv','pad']],['Regent’s Canal',['lv','rp','cam','stp','kx','isl','nb','crb','hag','bm','vp','hu','mile','lime']],['Hertford Union Canal',['hu','lee0']],['Limehouse Cut',['lime','cut1','bow']],['Lee Navigation',['bow','lee0','clap','tott','stam','enf','wal','brox','hert']]];
+const K=111320,rad=Math.PI/180,ll=k=>({lat:P[k][1],lon:P[k][2]});
+const dm=(a,b)=>Math.hypot((b.lon-a.lon)*K*Math.cos(a.lat*rad),(b.lat-a.lat)*K);
+const brg=(a,b)=>(Math.atan2((b.lon-a.lon)*Math.cos(a.lat*rad),b.lat-a.lat)/rad+360)%360;
+const G={};W.forEach(([n,ids],i)=>{for(let j=0;j<ids.length-1;j++){const a=ids[j],b=ids[j+1],w=dm(ll(a),ll(b));(G[a]=G[a]||[]).push([b,w,i]);(G[b]=G[b]||[]).push([a,w,i])}});
+const ways=id=>W.filter(w=>w[1].includes(id)).map(w=>w[0]).join(' · ');
+function route(a,b){const d={},pr={},q=new Set(Object.keys(P));q.forEach(k=>d[k]=1e12);d[a]=0;
+while(q.size){let u=null;q.forEach(k=>{if(u==null||d[k]<d[u])u=k});q.delete(u);if(u==b)break;(G[u]||[]).forEach(([v,w,i])=>{if(d[u]+w<d[v]){d[v]=d[u]+w;pr[v]=[u,i]}})}
+if(d[b]>=1e12)return null;const path=[b],ws=[];let c=b;while(c!=a){const[u,i]=pr[c];ws.unshift(i);path.unshift(u);c=u}return{path,ws}}
+const near=p=>Object.keys(P).reduce((m,k)=>dm(p,ll(k))<dm(p,ll(m))?k:m,'lv');
+// state
+let pos=null,tgt=null,hd=0,anim=0,nav=false,follow=true,mode='explore',sel=null,flt=null,dark=false;
+let F='lv',Tt='hert',RT=[],RC=[],cd=[0],RWS=[];const sim={spoof:0,cruise:0,follow:0,v:1.34,h:0,s:0};
+const STY=['https://tiles.openfreemap.org/styles/liberty','https://tiles.openfreemap.org/styles/dark'];
+const map=new maplibregl.Map({container:'map',style:STY[0],center:[-0.1,51.535],zoom:12.3,pitch:45,maxPitch:75,attributionControl:false});
+let ready=false;
+function routeGJ(){return RC.length>1?{type:'Feature',geometry:{type:'LineString',coordinates:RC.map(p=>[p.lon,p.lat])}}:{type:'FeatureCollection',features:[]}}
+function boatGJ(){if(!pos)return{type:'FeatureCollection',features:[]};const s=Math.min(40,Math.max(2.2,2.2*2**(17-map.getZoom()))),a=hd*rad;
+const f=(pts,b,h,c)=>{const q=pts.map(([x,y])=>{x*=s;y*=s;return[pos.lon+(x*Math.cos(a)+y*Math.sin(a))/(K*Math.cos(pos.lat*rad)),pos.lat+(-x*Math.sin(a)+y*Math.cos(a))/K]});q.push(q[0]);return{type:'Feature',properties:{b:b*s,h:h*s,c},geometry:{type:'Polygon',coordinates:[q]}}};
+return{type:'FeatureCollection',features:[f([[-1.05,-9],[1.05,-9],[1.05,5],[0,9],[-1.05,5]],0,1.1,'#1b4d2e'),f([[-.85,-6.5],[.85,-6.5],[.85,3.5],[-.85,3.5]],1.1,3.4,'#c62828'),f([[-.2,2],[.2,2],[.2,2.5],[-.2,2.5]],3.4,4.6,'#222')]}}
+function init(){const st=map.getStyle(),vs=Object.entries(st.sources).find(([k,v])=>v.type=='vector'),sy=st.layers.find(l=>l.type=='symbol'),b4=sy&&sy.id;
+if(vs){if(!st.layers.some(l=>l.type=='fill-extrusion'))map.addLayer({id:'b3d',type:'fill-extrusion',source:vs[0],'source-layer':'building',minzoom:14,paint:{'fill-extrusion-color':dark?'#3a4552':'#d9d4cc','fill-extrusion-height':['coalesce',['get','render_height'],6],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':.9}},b4);
+map.addLayer({id:'canal',type:'line',source:vs[0],'source-layer':'waterway',filter:['==','class','canal'],paint:{'line-color':'#1a73e8','line-width':['interpolate',['linear'],['zoom'],10,2,16,9]}},b4)}
+map.addSource('route',{type:'geojson',data:routeGJ()});
+map.addLayer({id:'route-c',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#fff','line-width':12}});
+map.addLayer({id:'route',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#e8710a','line-width':7}});
+map.addSource('boat',{type:'geojson',data:boatGJ()});
+map.addLayer({id:'boat',type:'fill-extrusion',source:'boat',paint:{'fill-extrusion-color':['get','c'],'fill-extrusion-height':['get','h'],'fill-extrusion-base':['get','b'],'fill-extrusion-opacity':1}})}
+map.on('style.load',()=>{ready=true;init()});
+setTimeout(()=>{if(!ready){toast('Basemap blocked here. Host this file on https to load OpenStreetMap.');map.setStyle({version:8,sources:{},layers:[{id:'bg',type:'background',paint:{'background-color':'#dfe7ec'}}]})}},6000);
+const setRoute=()=>map.getSource('route')?.setData(routeGJ()),setBoat=()=>map.getSource('boat')?.setData(boatGJ());
+map.on('zoom',()=>{setBoat();vis()});
+// markers
+const MK={};Object.keys(P).forEach(k=>{const e=document.createElement('div');e.className='pin';e.textContent=T[P[k][3]][0];e.dataset.n=P[k][0];e.onclick=ev=>{ev.stopPropagation();place(k,1)};MK[k]=new maplibregl.Marker({element:e}).setLngLat([P[k][2],P[k][1]]).addTo(map)});
+function vis(){const z=map.getZoom();Object.keys(MK).forEach(k=>{const t=P[k][3],on=sel==k||RT.includes(k)||(t=='junc'?z>=10:flt?t==flt:z>=11),e=MK[k].getElement();e.style.display=on?'':'none';e.classList.toggle('sel',k==sel)})}
+function fit(ids){const b=new maplibregl.LngLatBounds();ids.forEach(k=>b.extend([P[k][2],P[k][1]]));map.fitBounds(b,{padding:{top:150,bottom:290,left:40,right:70},maxZoom:15.5,duration:700})}
+// position
+function setPos(lat,lon,h){const p0=pos;tgt={lat,lon};if(h==null&&p0&&dm(p0,tgt)>2)h=brg(p0,tgt);if(h==null)h=hd;
+cancelAnimationFrame(anim);if(!p0){pos={lat,lon};hd=h;return frame()}
+const a={...pos,h:hd},dh=((h-hd+540)%360)-180,t0=performance.now(),du=sim.spoof?200:900;
+(function s(t){const k=Math.min(1,(t-t0)/du);pos={lat:a.lat+(lat-a.lat)*k,lon:a.lon+(lon-a.lon)*k};hd=(a.h+dh*k+360)%360;frame();if(k<1)anim=requestAnimationFrame(s)})(t0)}
+function cam(){map.jumpTo({center:[pos.lon,pos.lat],bearing:hd,pitch:62,zoom:17.3,padding:{top:Math.round(innerHeight*.38),bottom:0,left:0,right:0}})}
+function frame(){setBoat();if(nav){if(follow)cam();hud()}$('#dro').textContent=`${pos.lat.toFixed(5)}, ${pos.lon.toFixed(5)} · ${Math.round(hd)}°`}
+let wid=null;
+function watch(){if(wid!=null||!navigator.geolocation)return navigator.geolocation?0:toast('This browser has no geolocation');
+wid=navigator.geolocation.watchPosition(p=>{if(sim.spoof)return;const c=p.coords;setPos(c.latitude,c.longitude,c.heading!=null&&c.speed>.5?c.heading:null)},
+e=>{wid=null;toast((['','Location blocked: allow it for this site (needs https).','Position unavailable.','Location timed out.'][e.code]||'Location unavailable.')+' Try 🛠 Dev mode.')},{enableHighAccuracy:true,maximumAge:2000,timeout:15000})}
+$('#loc').onclick=()=>{if(nav&&!follow){follow=true;return cam()}if(pos)map.flyTo({center:[pos.lon,pos.lat],zoom:15.5});else{toast('Locating…');watch()}};
+// route progress
+function proj(p){let b={d:1e12,s:0},acc=0;for(let i=0;i<RC.length-1;i++){const a=RC[i],c=RC[i+1],L=cd[i+1]-cd[i],k=Math.cos(a.lat*rad),ax=(c.lon-a.lon)*K*k,ay=(c.lat-a.lat)*K,px=(p.lon-a.lon)*K*k,py=(p.lat-a.lat)*K,t=L?Math.max(0,Math.min(1,(px*ax+py*ay)/(L*L))):0,d=Math.hypot(px-t*ax,py-t*ay);if(d<b.d)b={d,s:cd[i]+t*L};}return b}
+function pointAt(s){let i=0;while(i<RC.length-2&&cd[i+1]<s)i++;const a=RC[i],b=RC[i+1],t=(s-cd[i])/((cd[i+1]-cd[i])||1);return{lat:a.lat+(b.lat-a.lat)*t,lon:a.lon+(b.lon-a.lon)*t,h:brg(a,b)}}
+const tf=h=>h>=1?`${Math.floor(h)} h ${Math.round(h%1*60)} min`:`${Math.max(1,Math.round(h*60))} min`;
+function hud(){if(RC.length<2||!pos)return;const pr=proj(pos),rem=cd[cd.length-1]-pr.s;let nx=cd.findIndex(x=>x>pr.s+15);if(nx<0)nx=RT.length-1;
+const lk=RT.filter((k,i)=>i>=nx&&P[k][3]=='lock').length,mi=rem/1609.34;
+$('#hi').textContent=rem<25?'You have arrived':'Continue on '+W[RWS[Math.max(0,nx-1)]][0];
+$('#hs').textContent=rem<25?P[RT[RT.length-1]][0]:`to ${P[RT[nx]][0]} · ${Math.round(cd[nx]-pr.s)} m${pr.d>80?' · off route':''}`;
+$('#et').textContent=tf(mi/3+lk*5/60);$('#ed').textContent=`${mi.toFixed(1)} mi · ${lk} lock${lk==1?'':'s'}`}
+function startNav(){if(RC.length<2)return;if(!pos){const q=pointAt(0);setPos(q.lat,q.lon,q.h);toast('No GPS: starting at route start. Use 🛠 to spoof.')}
+nav=true;follow=true;document.body.classList.add('nav');hide();cam();hud();fab()}
+$('#ex').onclick=()=>{nav=false;document.body.classList.remove('nav');RT=[];RC=[];setRoute();vis();map.easeTo({bearing:0,pitch:45,zoom:15,padding:{top:0,bottom:0,left:0,right:0}});setMode('explore');fab()};
+map.on('dragstart',e=>{if(nav&&e.originalEvent){follow=false;toast('Tap ◎ to recenter')}});
+// sheet
+const sheet=$('#sheet');
+function show(h){sheet.innerHTML='<div class="grab"></div>'+h;sheet.classList.add('on');fab()}
+function hide(){sheet.classList.remove('on');fab()}
+function fab(){$('#fabs').style.bottom=(nav?96:sheet.classList.contains('on')?sheet.offsetHeight+66:70)+'px'}
+function setMode(m){mode=m;$('#dir').hidden=m!='go';$('#top').hidden=m=='go';document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.m==m))}
+let S=new Set();try{S=new Set(JSON.parse(localStorage.getItem('cut')||'[]'))}catch(e){}
+function save(id){S.has(id)?S.delete(id):S.add(id);try{localStorage.setItem('cut',JSON.stringify([...S]))}catch(e){}place(id)}
+function place(id,fly){sel=id;setMode('explore');const p=P[id];if(fly||1)map.flyTo({center:[p[2],p[1]],zoom:Math.max(map.getZoom(),14.5),speed:1.4});
+show(`<h2>${p[0]}</h2><div class="sub">${T[p[3]][0]} ${T[p[3]][1]} · ${ways(id)}</div><div class="row"><button class="pri" onclick="go(null,'${id}')">➤ Directions</button><button onclick="save('${id}')">${S.has(id)?'★ Saved':'☆ Save'}</button><button onclick="share()">Share</button></div><p>${p[4]}</p><small>Illustrative demo data. Not for navigation.</small>`);vis()}
+function share(){try{navigator.share({title:P[sel][0],text:P[sel][0]+' on the cut'}).catch(()=>{})}catch(e){toast('Sharing not available')}}
+function saved(){setMode('saved');RT=[];RC=[];setRoute();show('<h2>Saved places</h2>'+(S.size?[...S].map(k=>`<div style="padding:10px 0;border-bottom:1px solid var(--line)" onclick="pick('${k}')">${T[P[k][3]][0]} <b>${P[k][0]}</b><br><small>${ways(k)}</small></div>`).join(''):'<p class="sub">Nothing saved yet. Tap ☆ Save on any place.</p>'))}
+function go(a,b){setMode('go');if(b)Tt=b;if(a)F=a;else if(pos)F=near(pos);if(F==Tt)F=Tt=='lv'?'hert':'lv';
+const o=s=>Object.keys(P).map(k=>`<option value="${k}"${k==s?' selected':''}>${P[k][0]}</option>`).join('');$('#f').innerHTML=o(F);$('#t').innerHTML=o(Tt);calc()}
+function calc(){const r=F!=Tt&&route(F,Tt);RT=r?r.path:[];RWS=r?r.ws:[];RC=RT.map(ll);cd=[0];for(let i=1;i<RC.length;i++)cd[i]=cd[i-1]+dm(RC[i-1],RC[i]);sim.s=0;setRoute();vis();
+if(!r)return show('<h2>No route</h2><p class="sub">Pick two different places.</p>');
+const mi=cd[cd.length-1]/1609.34,lk=RT.filter(k=>P[k][3]=='lock').length,seg=[];
+for(let i=0;i<RWS.length;i++){const d=cd[i+1]-cd[i],l=seg[seg.length-1];if(l&&l.i==RWS[i]){l.to=RT[i+1];l.m+=d}else seg.push({i:RWS[i],to:RT[i+1],m:d})}
+show(`<div class="big"><b>${tf(mi/3+lk*5/60)}</b> <span class="sub">${mi.toFixed(1)} mi · ${lk} lock${lk==1?'':'s'}</span></div><div class="row"><button class="pri" onclick="startNav()">▶ Start</button></div><ol>${seg.map(s=>`<li>Follow <b>${W[s.i][0]}</b> to <b>${P[s.to][0]}</b> <small>${(s.m/1609.34).toFixed(1)} mi</small></li>`).join('')}</ol>`);fit(RT)}
+$('#f').onchange=e=>{F=e.target.value;calc()};$('#t').onchange=e=>{Tt=e.target.value;calc()};
+$('#dx').onclick=()=>{RT=[];RC=[];setRoute();vis();hide();setMode('explore')};
+$('#gb').onclick=()=>go(null,sel||Tt);
+// search + chips
+const q=$('#q'),res=$('#res');
+q.oninput=()=>{const v=q.value.trim().toLowerCase();if(!v){res.hidden=true;return}
+const a=Object.keys(P).filter(k=>(P[k][0]+' '+T[P[k][3]][1]).toLowerCase().includes(v)).slice(0,5).map(k=>`<div onclick="pick('${k}')">${T[P[k][3]][0]} <b>${P[k][0]}</b><small>${ways(k)}</small></div>`),
+b=W.map((w,i)=>[w,i]).filter(([w])=>w[0].toLowerCase().includes(v)).map(([w,i])=>`<div onclick="fitW(${i})">〰️ <b>${w[0]}</b><small>Waterway</small></div>`);
+res.innerHTML=a.concat(b).join('')||'<div>No matches</div>';res.hidden=false};
+function pick(k){res.hidden=true;q.blur();place(k)}
+function fitW(i){res.hidden=true;q.blur();fit(W[i][1])}
+$('#chips').innerHTML=Object.entries(T).filter(([k])=>k!='junc').map(([k,v])=>`<button class="chip" data-k="${k}">${v[0]} ${v[1]}</button>`).join('');
+$('#chips').onclick=e=>{const b=e.target.closest('.chip');if(!b)return;flt=flt==b.dataset.k?null:b.dataset.k;document.querySelectorAll('.chip').forEach(x=>x.classList.toggle('on',x.dataset.k==flt));
+if(flt){const ids=Object.keys(P).filter(k=>P[k][3]==flt);fit(ids);show(`<h2>${T[flt][1]}s</h2>`+ids.map(k=>`<div style="padding:10px 0;border-bottom:1px solid var(--line)" onclick="pick('${k}')"><b>${P[k][0]}</b><br><small>${ways(k)}</small></div>`).join(''))}else hide();vis()};
+$('#nav').onclick=e=>{const m=e.target.closest('button')?.dataset.m;if(m=='go')go(null,sel);else if(m=='saved')saved();else if(m=='explore'){RT=[];RC=[];setRoute();vis();hide();setMode('explore')}};
+map.on('click',e=>{res.hidden=true;if(sim.spoof&&$('#dsp').checked){setPos(e.lngLat.lat,e.lngLat.lng,sim.h);return}if(mode=='explore'&&!nav){sel=null;hide();vis()}});
+$('#sty').onclick=()=>{dark=!dark;document.documentElement.dataset.theme=dark?'dark':'light';ready=true;map.setStyle(STY[+dark])};
+function toast(t){const el=$('#toast');el.textContent=t;el.style.opacity=1;clearTimeout(toast.t);toast.t=setTimeout(()=>el.style.opacity=0,3200)}
+// dev mode
+$('#dtp').innerHTML=Object.keys(P).map(k=>`<option value="${k}">${P[k][0]}</option>`).join('');
+$('#dvb').onclick=()=>$('#dev').hidden=!$('#dev').hidden;$('#dvx').onclick=()=>$('#dev').hidden=true;
+$('#dsp').onchange=e=>{sim.spoof=e.target.checked?1:0;if(sim.spoof&&!pos){const c=map.getCenter();setPos(c.lat,c.lng,sim.h)}else if(!sim.spoof)watch()};
+$('#dh').oninput=e=>{sim.h=+e.target.value;$('#dhv').textContent=sim.h+'°';if(sim.spoof&&tgt)setPos(tgt.lat,tgt.lon,sim.h)};
+$('#dv').onchange=e=>sim.v=+e.target.value;
+$('#dtp').onchange=e=>{const p=ll(e.target.value);$('#dsp').checked=true;sim.spoof=1;setPos(p.lat,p.lon,sim.h);if(!nav)map.flyTo({center:[p.lon,p.lat],zoom:15.5})};
+$('#dc').onclick=e=>{sim.cruise=!sim.cruise;sim.follow=0;$('#dr').classList.remove('on');e.target.classList.toggle('on',!!sim.cruise);$('#dsp').checked=true;sim.spoof=1;if(!pos){const c=map.getCenter();setPos(c.lat,c.lng,sim.h)}};
+$('#dr').onclick=e=>{if(RC.length<2)return toast('Plan a route first (➤ Go)');sim.follow=!sim.follow;sim.cruise=0;$('#dc').classList.remove('on');e.target.classList.toggle('on',!!sim.follow);$('#dsp').checked=true;sim.spoof=1;
+if(sim.follow){const near0=pos&&proj(pos);if(near0&&near0.d<150)sim.s=near0.s;else{sim.s=0;const q=pointAt(0);setPos(q.lat,q.lon,q.h)}}};
+setInterval(()=>{if(!sim.spoof)return;const dt=.2;
+if(sim.follow&&RC.length>1){sim.s=Math.min(cd[cd.length-1],sim.s+sim.v*dt);const q=pointAt(sim.s);setPos(q.lat,q.lon,q.h)}
+else if(sim.cruise&&tgt){const d=sim.v*dt,a=sim.h*rad;setPos(tgt.lat+Math.cos(a)*d/K,tgt.lon+Math.sin(a)*d/(K*Math.cos(tgt.lat*rad)),sim.h)}},200);
+map.on('load',()=>{vis();fab()});
+</script></body></html>
