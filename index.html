@@ -13,7 +13,7 @@ button,select{font:inherit;color:inherit}
 #app{position:relative;height:100%;overflow:hidden}
 #map.maplibregl-map{position:absolute;inset:0}.maplibregl-canvas{position:absolute;left:0;top:0;touch-action:none}
 .maplibregl-marker{position:absolute;top:0;left:0;will-change:transform}
-.pin{width:30px;height:30px;border-radius:50%;background:var(--card);border:2px solid #2b7bd6;display:grid;place-items:center;font-size:15px;box-shadow:0 1px 5px #0005;cursor:pointer}
+.pin{width:22px;height:22px;border-radius:50%;background:var(--card);border:2px solid #2b7bd6;display:grid;place-items:center;font-size:11px;opacity:.92;box-shadow:0 1px 5px #0005;cursor:pointer}
 .pin.sel{background:var(--acc);transform:scale(1.2)}
 .pin.sel::after{content:attr(data-n);position:absolute;top:32px;left:50%;transform:translateX(-50%);white-space:nowrap;background:var(--card);color:var(--ink);padding:2px 7px;border-radius:6px;font-size:12px;box-shadow:0 1px 4px #0004}
 .card{background:var(--card);box-shadow:0 2px 8px #0004}
@@ -56,7 +56,7 @@ body.nav #hud{display:block}body.nav #eta{display:flex}body.nav #top,body.nav #d
 #dev label{display:flex;gap:8px;align-items:center;margin:6px 0}#dev input[type=range]{flex:1}#dev .row{margin:6px 0}
 #attr{position:absolute;left:6px;bottom:60px;z-index:3;font-size:10px;background:#fffc;color:#333;padding:1px 5px;border-radius:4px}
 </style></head><body><div id="app">
-<div id="map"></div><div id="attr">© OpenStreetMap · OpenFreeMap · CRT-style demo data</div>
+<div id="map"></div><div id="attr">© OpenStreetMap contributors · OpenFreeMap</div>
 <div id="top"><div id="sb" class="card"><span>☰</span><input id="q" placeholder="Search the cut" autocomplete="off"><div class="av">C</div></div>
 <div id="res" class="card" hidden></div><div id="chips"></div></div>
 <div id="dir" class="card" hidden><div class="r"><b>⚓ Directions · 3 mph</b><button class="x" id="dx">✕</button></div>
@@ -125,44 +125,65 @@ function routeGJ(){return RC.length>1?{type:'Feature',geometry:{type:'LineString
 function boatGJ(){if(!pos)return{type:'FeatureCollection',features:[]};const s=Math.min(40,Math.max(2.2,2.2*2**(17-map.getZoom()))),a=hd*rad;
 const f=(pts,b,h,c)=>{const q=pts.map(([x,y])=>{x*=s;y*=s;return[pos.lon+(x*Math.cos(a)+y*Math.sin(a))/(K*Math.cos(pos.lat*rad)),pos.lat+(-x*Math.sin(a)+y*Math.cos(a))/K]});q.push(q[0]);return{type:'Feature',properties:{b:b*s,h:h*s,c},geometry:{type:'Polygon',coordinates:[q]}}};
 return{type:'FeatureCollection',features:[f([[-1.05,-9],[1.05,-9],[1.05,5],[0,9],[-1.05,5]],0,1.1,'#1b4d2e'),f([[-.85,-6.5],[.85,-6.5],[.85,3.5],[-.85,3.5]],1.1,3.4,'#c62828'),f([[-.2,2],[.2,2],[.2,2.5],[-.2,2.5]],3.4,4.6,'#222')]}}
+let NET=null,GJ=null,VX,LA=[],LO=[],ADJ=[],SNAP={},NM=[],WP=[],SG=[],WPS=new Set(),comp=null,lc=0;
 function init(){const st=map.getStyle(),vs=Object.entries(st.sources).find(([k,v])=>v.type=='vector'),sy=st.layers.find(l=>l.type=='symbol'),b4=sy&&sy.id;
-if(vs){if(!st.layers.some(l=>l.type=='fill-extrusion'))map.addLayer({id:'b3d',type:'fill-extrusion',source:vs[0],'source-layer':'building',minzoom:14,paint:{'fill-extrusion-color':dark?'#3a4552':'#d9d4cc','fill-extrusion-height':['coalesce',['get','render_height'],6],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':.9}},b4);
-map.addLayer({id:'canal',type:'line',source:vs[0],'source-layer':'waterway',filter:['==','class','canal'],paint:{'line-color':'#1a73e8','line-width':['interpolate',['linear'],['zoom'],10,2,16,9]}},b4)}
+if(vs&&!st.layers.some(l=>l.type=='fill-extrusion'))map.addLayer({id:'b3d',type:'fill-extrusion',source:vs[0],'source-layer':'building',minzoom:14,paint:{'fill-extrusion-color':dark?'#3a4552':'#d9d4cc','fill-extrusion-height':['coalesce',['get','render_height'],6],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':.9}},b4);
+map.addSource('cn',{type:'geojson',data:GJ||{type:'FeatureCollection',features:[]}});
+const lw=(a,b,c,d)=>['interpolate',['linear'],['zoom'],3,a,10,b,14,c,17,d],ly={'line-cap':'round','line-join':'round'};
+map.addLayer({id:'cn-c',type:'line',source:'cn',layout:ly,paint:{'line-color':dark?'#12191f':'#fff','line-width':lw(3.5,6,9,14),'line-opacity':.85}},b4);
+map.addLayer({id:'cn',type:'line',source:'cn',layout:ly,paint:{'line-color':'#1a73e8','line-width':lw(2,3.5,6,10)}},b4);
 map.addSource('route',{type:'geojson',data:routeGJ()});
 map.addLayer({id:'route-c',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#fff','line-width':12}});
 map.addLayer({id:'route',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#e8710a','line-width':7}});
 map.addSource('boat',{type:'geojson',data:boatGJ()});
 map.addLayer({id:'boat',type:'fill-extrusion',source:'boat',paint:{'fill-extrusion-color':['get','c'],'fill-extrusion-height':['get','h'],'fill-extrusion-base':['get','b'],'fill-extrusion-opacity':1}})}
+// real canal geometry (OpenStreetMap via Overpass), cached after first load
+function buildNet(){NM=NET.names;VX=new Map();LA=[];LO=[];ADJ=[];const id=(a,o)=>{const k=a*3e5+o+15e4;let i=VX.get(k);if(i==null){i=LA.length;VX.set(k,i);LA.push(a/1e5);LO.push(o/1e5);ADJ.push([])}return i},fs=[];
+NET.ways.forEach(w=>{const co=[];let p=-1;for(let j=1;j<w.length;j+=2){const i=id(w[j],w[j+1]);co.push([LO[i],LA[i]]);if(p>=0&&p!=i){const d=dm({lat:LA[p],lon:LO[p]},{lat:LA[i],lon:LO[i]});ADJ[p].push([i,d,w[0]]);ADJ[i].push([p,d,w[0]])}p=i}fs.push({type:'Feature',geometry:{type:'LineString',coordinates:co}})});
+GJ={type:'FeatureCollection',features:fs};
+Object.keys(P).forEach(k=>{const c=Math.cos(P[k][1]*rad);let b=0,bd=1e9;for(let i=0;i<LA.length;i++){const d=(LA[i]-P[k][1])**2+((LO[i]-P[k][2])*c)**2;if(d<bd){bd=d;b=i}}SNAP[k]=b;P[k][1]=LA[b];P[k][2]=LO[b];MK[k].setLngLat([LO[b],LA[b]])});
+map.getSource('cn')?.setData(GJ)}
+async function loadNet(){try{const c=localStorage.getItem('cutnet2');if(c){NET=JSON.parse(c);return buildNet()}}catch(e){}
+const q='[out:json][timeout:90];(way["waterway"="canal"]["boat"!="no"]["disused"!="yes"]["abandoned"!="yes"]["intermittent"!="yes"]["name"!~"New River|Brent|Dock"](51.45,-0.40,51.82,0.05);way["waterway"="river"]["name"~"Navigation"]["boat"!="no"](51.45,-0.40,51.82,0.05););out geom;';
+toast('Loading canal data…');
+for(const u of['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter']){try{const r=await fetch(u,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});if(!r.ok)throw 0;const j=await r.json(),names=[],ways=[];
+j.elements.forEach(e=>{if(!e.geometry||e.geometry.length<2)return;const n=(e.tags&&e.tags.name)||'Canal';let i=names.indexOf(n);if(i<0){i=names.length;names.push(n)}const w=[i];e.geometry.forEach(g=>w.push(Math.round(g.lat*1e5),Math.round(g.lon*1e5)));ways.push(w)});
+if(!ways.length)throw 0;NET={names,ways};try{localStorage.setItem('cutnet2',JSON.stringify(NET))}catch(e){}buildNet();toast('Canal data loaded');return}catch(e){}}
+toast('Canal data unavailable: using approximate network');
+GJ={type:'FeatureCollection',features:W.map(w=>({type:'Feature',geometry:{type:'LineString',coordinates:w[1].map(k=>[P[k][2],P[k][1]])}}))};map.getSource('cn')?.setData(GJ)}
+
 map.on('style.load',()=>{ready=true;init()});
 setTimeout(()=>{if(!ready){toast('Basemap blocked here. Host this file on https to load OpenStreetMap.');map.setStyle({version:8,sources:{},layers:[{id:'bg',type:'background',paint:{'background-color':'#dfe7ec'}}]})}},6000);
 const setRoute=()=>map.getSource('route')?.setData(routeGJ()),setBoat=()=>map.getSource('boat')?.setData(boatGJ());
 map.on('zoom',()=>{setBoat();vis()});
 // markers
 const MK={};Object.keys(P).forEach(k=>{const e=document.createElement('div');e.className='pin';e.textContent=T[P[k][3]][0];e.dataset.n=P[k][0];e.onclick=ev=>{ev.stopPropagation();place(k,1)};MK[k]=new maplibregl.Marker({element:e}).setLngLat([P[k][2],P[k][1]]).addTo(map)});
-function vis(){const z=map.getZoom();Object.keys(MK).forEach(k=>{const t=P[k][3],on=sel==k||RT.includes(k)||(t=='junc'?z>=10:flt?t==flt:z>=11),e=MK[k].getElement();e.style.display=on?'':'none';e.classList.toggle('sel',k==sel)})}
+function vis(){Object.keys(MK).forEach(k=>{const on=sel==k||(RC.length>1&&WPS.has(k))||(flt&&P[k][3]==flt),e=MK[k].getElement();e.style.display=on?'':'none';e.classList.toggle('sel',k==sel)})}
 function fit(ids){const b=new maplibregl.LngLatBounds();ids.forEach(k=>b.extend([P[k][2],P[k][1]]));map.fitBounds(b,{padding:{top:150,bottom:290,left:40,right:70},maxZoom:15.5,duration:700})}
 // position
 function setPos(lat,lon,h){const p0=pos;tgt={lat,lon};if(h==null&&p0&&dm(p0,tgt)>2)h=brg(p0,tgt);if(h==null)h=hd;
 cancelAnimationFrame(anim);if(!p0){pos={lat,lon};hd=h;return frame()}
 const a={...pos,h:hd},dh=((h-hd+540)%360)-180,t0=performance.now(),du=sim.spoof?200:900;
 (function s(t){const k=Math.min(1,(t-t0)/du);pos={lat:a.lat+(lat-a.lat)*k,lon:a.lon+(lon-a.lon)*k};hd=(a.h+dh*k+360)%360;frame();if(k<1)anim=requestAnimationFrame(s)})(t0)}
-function cam(){map.jumpTo({center:[pos.lon,pos.lat],bearing:hd,pitch:62,zoom:17.3,padding:{top:Math.round(innerHeight*.38),bottom:0,left:0,right:0}})}
-function frame(){setBoat();if(nav){if(follow)cam();hud()}$('#dro').textContent=`${pos.lat.toFixed(5)}, ${pos.lon.toFixed(5)} · ${Math.round(hd)}°`}
+function cam(){map.jumpTo({center:[pos.lon,pos.lat],bearing:sim.spoof||comp==null?hd:comp,pitch:62,zoom:17.3,padding:{top:Math.round(innerHeight*.38),bottom:0,left:0,right:0}})}
+function oc(e){if(sim.spoof)return;let h=e.webkitCompassHeading;if(h==null&&e.absolute&&e.alpha!=null)h=(360-e.alpha)%360;if(h==null)return;comp=comp==null?h:(comp+((h-comp+540)%360-180)*.3+360)%360;const n=performance.now();if(nav&&follow&&pos&&n-lc>40){lc=n;cam()}}
+function startCompass(){if(window._cp)return;const on=()=>{window._cp=1;addEventListener('deviceorientationabsolute',oc,true);addEventListener('deviceorientation',oc,true)},D=window.DeviceOrientationEvent;
+if(D&&D.requestPermission)D.requestPermission().then(r=>r=='granted'?on():toast('Compass permission denied')).catch(()=>toast('Compass unavailable'));else on()}
+function frame(){setBoat();if(nav){if(follow)cam();hud()}$('#dro').textContent=`${pos.lat.toFixed(5)}, ${pos.lon.toFixed(5)} · ${Math.round(hd)}° · 🧭${comp==null?'–':Math.round(comp)}`}
 let wid=null;
 function watch(){if(wid!=null||!navigator.geolocation)return navigator.geolocation?0:toast('This browser has no geolocation');
 wid=navigator.geolocation.watchPosition(p=>{if(sim.spoof)return;const c=p.coords;setPos(c.latitude,c.longitude,c.heading!=null&&c.speed>.5?c.heading:null)},
 e=>{wid=null;toast((['','Location blocked: allow it for this site (needs https).','Position unavailable.','Location timed out.'][e.code]||'Location unavailable.')+' Try 🛠 Dev mode.')},{enableHighAccuracy:true,maximumAge:2000,timeout:15000})}
-$('#loc').onclick=()=>{if(nav&&!follow){follow=true;return cam()}if(pos)map.flyTo({center:[pos.lon,pos.lat],zoom:15.5});else{toast('Locating…');watch()}};
+$('#loc').onclick=()=>{startCompass();if(nav&&!follow){follow=true;return cam()}if(pos)map.flyTo({center:[pos.lon,pos.lat],zoom:15.5});else{toast('Locating…');watch()}};
 // route progress
 function proj(p){let b={d:1e12,s:0},acc=0;for(let i=0;i<RC.length-1;i++){const a=RC[i],c=RC[i+1],L=cd[i+1]-cd[i],k=Math.cos(a.lat*rad),ax=(c.lon-a.lon)*K*k,ay=(c.lat-a.lat)*K,px=(p.lon-a.lon)*K*k,py=(p.lat-a.lat)*K,t=L?Math.max(0,Math.min(1,(px*ax+py*ay)/(L*L))):0,d=Math.hypot(px-t*ax,py-t*ay);if(d<b.d)b={d,s:cd[i]+t*L};}return b}
 function pointAt(s){let i=0;while(i<RC.length-2&&cd[i+1]<s)i++;const a=RC[i],b=RC[i+1],t=(s-cd[i])/((cd[i+1]-cd[i])||1);return{lat:a.lat+(b.lat-a.lat)*t,lon:a.lon+(b.lon-a.lon)*t,h:brg(a,b)}}
 const tf=h=>h>=1?`${Math.floor(h)} h ${Math.round(h%1*60)} min`:`${Math.max(1,Math.round(h*60))} min`;
-function hud(){if(RC.length<2||!pos)return;const pr=proj(pos),rem=cd[cd.length-1]-pr.s;let nx=cd.findIndex(x=>x>pr.s+15);if(nx<0)nx=RT.length-1;
-const lk=RT.filter((k,i)=>i>=nx&&P[k][3]=='lock').length,mi=rem/1609.34;
-$('#hi').textContent=rem<25?'You have arrived':'Continue on '+W[RWS[Math.max(0,nx-1)]][0];
-$('#hs').textContent=rem<25?P[RT[RT.length-1]][0]:`to ${P[RT[nx]][0]} · ${Math.round(cd[nx]-pr.s)} m${pr.d>80?' · off route':''}`;
+function hud(){if(RC.length<2||!pos||!WP.length)return;const pr=proj(pos),tot=cd[cd.length-1],rem=tot-pr.s,nx=WP.find(w=>w.s>pr.s+15)||WP[WP.length-1],sg=[...SG].reverse().find(x=>x.s<=pr.s)||SG[0],lk=WP.filter(w=>w.s>pr.s&&P[w.k][3]=='lock').length,mi=rem/1609.34;
+$('#hi').textContent=rem<25?'You have arrived':'Continue on '+sg.n;
+$('#hs').textContent=rem<25?P[WP[WP.length-1].k][0]:`to ${P[nx.k][0]} · ${Math.max(0,Math.round(nx.s-pr.s))} m${pr.d>80?' · off route':''}`;
 $('#et').textContent=tf(mi/3+lk*5/60);$('#ed').textContent=`${mi.toFixed(1)} mi · ${lk} lock${lk==1?'':'s'}`}
-function startNav(){if(RC.length<2)return;if(!pos){const q=pointAt(0);setPos(q.lat,q.lon,q.h);toast('No GPS: starting at route start. Use 🛠 to spoof.')}
+function startNav(){startCompass();if(RC.length<2)return;if(!pos){const q=pointAt(0);setPos(q.lat,q.lon,q.h);toast('No GPS: starting at route start. Use 🛠 to spoof.')}
 nav=true;follow=true;document.body.classList.add('nav');hide();cam();hud();fab()}
 $('#ex').onclick=()=>{nav=false;document.body.classList.remove('nav');RT=[];RC=[];setRoute();vis();map.easeTo({bearing:0,pitch:45,zoom:15,padding:{top:0,bottom:0,left:0,right:0}});setMode('explore');fab()};
 map.on('dragstart',e=>{if(nav&&e.originalEvent){follow=false;toast('Tap ◎ to recenter')}});
@@ -180,11 +201,20 @@ function share(){try{navigator.share({title:P[sel][0],text:P[sel][0]+' on the cu
 function saved(){setMode('saved');RT=[];RC=[];setRoute();show('<h2>Saved places</h2>'+(S.size?[...S].map(k=>`<div style="padding:10px 0;border-bottom:1px solid var(--line)" onclick="pick('${k}')">${T[P[k][3]][0]} <b>${P[k][0]}</b><br><small>${ways(k)}</small></div>`).join(''):'<p class="sub">Nothing saved yet. Tap ☆ Save on any place.</p>'))}
 function go(a,b){setMode('go');if(b)Tt=b;if(a)F=a;else if(pos)F=near(pos);if(F==Tt)F=Tt=='lv'?'hert':'lv';
 const o=s=>Object.keys(P).map(k=>`<option value="${k}"${k==s?' selected':''}>${P[k][0]}</option>`).join('');$('#f').innerHTML=o(F);$('#t').innerHTML=o(Tt);calc()}
-function calc(){const r=F!=Tt&&route(F,Tt);RT=r?r.path:[];RWS=r?r.ws:[];RC=RT.map(ll);cd=[0];for(let i=1;i<RC.length;i++)cd[i]=cd[i-1]+dm(RC[i-1],RC[i]);sim.s=0;setRoute();vis();
+const hp=(h,x)=>{h.push(x);let i=h.length-1;while(i&&h[i][0]<h[(i-1)>>1][0]){const p=(i-1)>>1;[h[i],h[p]]=[h[p],h[i]];i=p}};
+const hpop=h=>{const t=h[0],l=h.pop();if(h.length){h[0]=l;let i=0;for(;;){let c=2*i+1;if(c>=h.length)break;if(c+1<h.length&&h[c+1][0]<h[c][0])c++;if(h[c][0]>=h[i][0])break;[h[i],h[c]]=[h[c],h[i]];i=c}}return t};
+function netRoute(a,b){const s=SNAP[a],t=SNAP[b];if(s==null||t==null||s==t)return 0;const n=LA.length,d=new Float64Array(n).fill(1e12),pv=new Int32Array(n).fill(-1),pe=[],h=[[0,s]];d[s]=0;
+while(h.length){const[du,u]=hpop(h);if(du>d[u])continue;if(u==t)break;for(const[v,w,nm]of ADJ[u]){if(du+w<d[v]){d[v]=du+w;pv[v]=u;pe[v]=nm;hp(h,[d[v],v])}}}
+if(d[t]>=1e12)return 0;const ix=[t];for(let c=t;c!=s;c=pv[c])ix.unshift(pv[c]);
+RC=ix.map(i=>({lat:LA[i],lon:LO[i]}));for(let i=1;i<RC.length;i++)cd[i]=cd[i-1]+dm(RC[i-1],RC[i]);
+ix.forEach((v,i)=>{if(i&&(!SG.length||SG[SG.length-1].n!=NM[pe[v]]))SG.push({n:NM[pe[v]],s:cd[i-1]})});
+const on=new Map(ix.map((v,i)=>[v,i]));Object.keys(P).forEach(k=>{const i=on.get(SNAP[k]);if(i!=null)WP.push({k,s:cd[i]})});WP.sort((x,y)=>x.s-y.s);return 1}
+function calc(){RT=[];RC=[];WP=[];SG=[];cd=[0];sim.s=0;let r=F!=Tt&&netRoute(F,Tt),ap=0;
+if(!r&&F!=Tt){const o=route(F,Tt);if(o){ap=1;RC=o.path.map(ll);for(let i=1;i<RC.length;i++)cd[i]=cd[i-1]+dm(RC[i-1],RC[i]);WP=o.path.map((k,i)=>({k,s:cd[i]}));o.ws.forEach((w,i)=>{if(!SG.length||SG[SG.length-1].w!=w)SG.push({n:W[w][0],w,s:cd[i]})});r=1}}
+WPS=new Set(WP.map(w=>w.k));setRoute();vis();
 if(!r)return show('<h2>No route</h2><p class="sub">Pick two different places.</p>');
-const mi=cd[cd.length-1]/1609.34,lk=RT.filter(k=>P[k][3]=='lock').length,seg=[];
-for(let i=0;i<RWS.length;i++){const d=cd[i+1]-cd[i],l=seg[seg.length-1];if(l&&l.i==RWS[i]){l.to=RT[i+1];l.m+=d}else seg.push({i:RWS[i],to:RT[i+1],m:d})}
-show(`<div class="big"><b>${tf(mi/3+lk*5/60)}</b> <span class="sub">${mi.toFixed(1)} mi · ${lk} lock${lk==1?'':'s'}</span></div><div class="row"><button class="pri" onclick="startNav()">▶ Start</button></div><ol>${seg.map(s=>`<li>Follow <b>${W[s.i][0]}</b> to <b>${P[s.to][0]}</b> <small>${(s.m/1609.34).toFixed(1)} mi</small></li>`).join('')}</ol>`);fit(RT)}
+const tot=cd[cd.length-1],mi=tot/1609.34,lk=WP.filter(w=>P[w.k][3]=='lock').length;
+show(`<div class="big"><b>${tf(mi/3+lk*5/60)}</b> <span class="sub">${mi.toFixed(1)} mi · ${lk} lock${lk==1?'':'s'}${ap?' · approx.':''}</span></div><div class="row"><button class="pri" onclick="startNav()">▶ Start</button></div><ol>${SG.map((g,j)=>{const e=j<SG.length-1?SG[j+1].s:tot,l=[...WP].reverse().find(w=>w.s>g.s&&w.s<=e+1)||WP[WP.length-1];return`<li>Follow <b>${g.n}</b> to <b>${P[l.k][0]}</b> <small>${((e-g.s)/1609.34).toFixed(1)} mi</small></li>`}).join('')}</ol>`);fit(WP.map(w=>w.k))}
 $('#f').onchange=e=>{F=e.target.value;calc()};$('#t').onchange=e=>{Tt=e.target.value;calc()};
 $('#dx').onclick=()=>{RT=[];RC=[];setRoute();vis();hide();setMode('explore')};
 $('#gb').onclick=()=>go(null,sel||Tt);
@@ -216,5 +246,5 @@ if(sim.follow){const near0=pos&&proj(pos);if(near0&&near0.d<150)sim.s=near0.s;el
 setInterval(()=>{if(!sim.spoof)return;const dt=.2;
 if(sim.follow&&RC.length>1){sim.s=Math.min(cd[cd.length-1],sim.s+sim.v*dt);const q=pointAt(sim.s);setPos(q.lat,q.lon,q.h)}
 else if(sim.cruise&&tgt){const d=sim.v*dt,a=sim.h*rad;setPos(tgt.lat+Math.cos(a)*d/K,tgt.lon+Math.sin(a)*d/(K*Math.cos(tgt.lat*rad)),sim.h)}},200);
-map.on('load',()=>{vis();fab()});
+vis();loadNet();map.on('load',()=>{vis();fab()});
 </script></body></html>
