@@ -59,7 +59,7 @@ body.nav #hud{display:block}body.nav #eta{display:flex}body.nav #top,body.nav #d
 #lay label{display:flex;gap:8px;align-items:center;margin:7px 0}#lay i{width:12px;height:12px;border-radius:50%;display:inline-block;flex:none}
 body.nav #lay{display:none}
 </style></head><body><div id="app">
-<div id="map"></div><div id="attr">© OpenStreetMap contributors · OpenFreeMap · v5</div>
+<div id="map"></div><div id="attr">© OpenStreetMap contributors · OpenFreeMap · Contains Canal &amp; River Trust data (OGL v3) · v7</div>
 <div id="top"><div id="sb" class="card"><span>☰</span><input id="q" placeholder="Search the cut" autocomplete="off"><div class="av">C</div></div>
 <div id="res" class="card" hidden></div><div id="chips"></div></div>
 <div id="dir" class="card" hidden><div class="r"><b>⚓ Directions · 3 mph</b><button class="x" id="dx">✕</button></div>
@@ -147,14 +147,14 @@ function buildNet(){NM=NET.names;VX=new Map();LA=[];LO=[];ADJ=[];const id=(a,o)=
 NET.ways.forEach(w=>{const co=[];let p=-1;for(let j=1;j<w.length;j+=2){const i=id(w[j],w[j+1]);co.push([LO[i],LA[i]]);if(p>=0&&p!=i){const d=dm({lat:LA[p],lon:LO[p]},{lat:LA[i],lon:LO[i]});ADJ[p].push([i,d,w[0]]);ADJ[i].push([p,d,w[0]])}p=i}fs.push({type:'Feature',geometry:{type:'LineString',coordinates:co}})});
 GJ={type:'FeatureCollection',features:fs};
 Object.keys(P).forEach(k=>{const c=Math.cos(P[k][1]*rad);let b=0,bd=1e9;for(let i=0;i<LA.length;i++){const d=(LA[i]-P[k][1])**2+((LO[i]-P[k][2])*c)**2;if(d<bd){bd=d;b=i}}SNAP[k]=b;P[k][1]=LA[b];P[k][2]=LO[b];MK[k].setLngLat([LO[b],LA[b]])});
-map.getSource('cn')?.setData(GJ)}
-async function loadNet(){try{const c=localStorage.getItem('cutnet2');if(c){NET=JSON.parse(c);return buildNet()}}catch(e){}
+deriveJX();map.getSource('cn')?.setData(GJ);loadFT();loadCRT()}
+async function loadNet(){{const c=cget('cutnet3');if(c){NET=c;return buildNet()}}
 const q='[out:json][timeout:90];(way["waterway"="canal"]["boat"!="no"]["disused"!="yes"]["abandoned"!="yes"]["intermittent"!="yes"]["name"!~"New River|Brent|Dock"](51.45,-0.40,51.82,0.05);way["waterway"="river"]["name"~"Navigation"]["boat"!="no"](51.45,-0.40,51.82,0.05););out geom;';
 toast('Loading canal data…');
 for(const u of['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter']){try{const r=await fetch(u,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});if(!r.ok)throw 0;const j=await r.json(),names=[],ways=[];
 j.elements.forEach(e=>{if(!e.geometry||e.geometry.length<2)return;const n=(e.tags&&e.tags.name)||'Canal';let i=names.indexOf(n);if(i<0){i=names.length;names.push(n)}const w=[i];e.geometry.forEach(g=>w.push(Math.round(g.lat*1e5),Math.round(g.lon*1e5)));ways.push(w)});
-if(!ways.length)throw 0;NET={names,ways};try{localStorage.setItem('cutnet2',JSON.stringify(NET))}catch(e){}buildNet();toast('Canal data loaded');return}catch(e){}}
-toast('Canal data unavailable: using approximate network');
+if(!ways.length)throw 0;NET={names,ways};cset('cutnet3',NET);buildNet();toast('Canal data loaded');return}catch(e){}}
+{const s=cget('cutnet3',1);if(s){NET=s;toast('Offline: using saved canal data');return buildNet()}}toast('Canal data unavailable: using approximate network');
 GJ={type:'FeatureCollection',features:W.map(w=>({type:'Feature',geometry:{type:'LineString',coordinates:w[1].map(k=>[P[k][2],P[k][1]])}}))};map.getSource('cn')?.setData(GJ)}
 
 map.on('style.load',()=>{ready=true;init()});
@@ -166,7 +166,7 @@ const MK={};Object.keys(P).forEach(k=>{const e=document.createElement('div');e.c
 function vis(){Object.keys(MK).forEach(k=>{const on=sel==k||(RC.length>1&&WPS.has(k))||(flt&&P[k][3]==flt),e=MK[k].getElement();e.style.display=on?'':'none';e.classList.toggle('sel',k==sel)})}
 function fit(ids){const b=new maplibregl.LngLatBounds();ids.forEach(k=>b.extend([P[k][2],P[k][1]]));map.fitBounds(b,{padding:{top:150,bottom:290,left:40,right:70},maxZoom:15.5,duration:700})}
 // position
-function setPos(lat,lon,h){const p0=pos;speedTick(lat,lon);tgt={lat,lon};if(h==null&&p0&&dm(p0,tgt)>2)h=brg(p0,tgt);if(h==null)h=hd;
+function setPos(lat,lon,h){if(nav&&RC.length>1){const pr=proj({lat,lon});if(pr.d<40){const q=pointAt(pr.s);lat=q.lat;lon=q.lon}}const p0=pos;speedTick(lat,lon);tgt={lat,lon};if(h==null&&p0&&dm(p0,tgt)>2)h=brg(p0,tgt);if(h==null)h=hd;
 cancelAnimationFrame(anim);if(!p0){pos={lat,lon};hd=h;return frame()}
 const a={...pos,h:hd},dh=((h-hd+540)%360)-180,t0=performance.now(),du=sim.spoof?200:900;
 (function s(t){const k=Math.min(1,(t-t0)/du);pos={lat:a.lat+(lat-a.lat)*k,lon:a.lon+(lon-a.lon)*k};hd=(a.h+dh*k+360)%360;frame();if(k<1)anim=requestAnimationFrame(s)})(t0)}
@@ -184,13 +184,13 @@ $('#loc').onclick=()=>{startCompass();if(nav&&!follow){follow=true;return cam()}
 function proj(p){let b={d:1e12,s:0},acc=0;for(let i=0;i<RC.length-1;i++){const a=RC[i],c=RC[i+1],L=cd[i+1]-cd[i],k=Math.cos(a.lat*rad),ax=(c.lon-a.lon)*K*k,ay=(c.lat-a.lat)*K,px=(p.lon-a.lon)*K*k,py=(p.lat-a.lat)*K,t=L?Math.max(0,Math.min(1,(px*ax+py*ay)/(L*L))):0,d=Math.hypot(px-t*ax,py-t*ay);if(d<b.d)b={d,s:cd[i]+t*L};}return b}
 function pointAt(s){let i=0;while(i<RC.length-2&&cd[i+1]<s)i++;const a=RC[i],b=RC[i+1],t=(s-cd[i])/((cd[i+1]-cd[i])||1);return{lat:a.lat+(b.lat-a.lat)*t,lon:a.lon+(b.lon-a.lon)*t,h:brg(a,b)}}
 const tf=h=>h>=1?`${Math.floor(h)} h ${Math.round(h%1*60)} min`:`${Math.max(1,Math.round(h*60))} min`;
-function hud(){if(RC.length<2||!pos||!WP.length)return;const pr=proj(pos),tot=cd[cd.length-1],rem=tot-pr.s,nx=WP.find(w=>w.s>pr.s+15)||WP[WP.length-1],sg=[...SG].reverse().find(x=>x.s<=pr.s)||SG[0],lk=WP.filter(w=>w.s>pr.s&&P[w.k][3]=='lock').length,mi=rem/1609.34;
-$('#hi').textContent=rem<25?'You have arrived':'Continue on '+sg.n;
-$('#hs').textContent=rem<25?P[WP[WP.length-1].k][0]:`to ${P[nx.k][0]} · ${Math.max(0,Math.round(nx.s-pr.s))} m${pr.d>80?' · off route':''}`;
-const v=avgV();$('#et').textContent=tf(rem/v/3600+lk*5/60);$('#ed').textContent=`${mi.toFixed(1)} mi · ${lk} lock${lk==1?'':'s'} · ${(v*2.23694).toFixed(1)} mph${TS.t>60?' avg':' est.'}`}
+function hud(){if(RC.length<2||!pos||!WP.length)return;const pr=proj(pos);if(offCheck(pr))return;const tot=cd[cd.length-1],rem=tot-pr.s,nx=WP.find(w=>w.s>pr.s+15)||WP[WP.length-1],sg=[...SG].reverse().find(x=>x.s<=pr.s)||SG[0],lk=WP.filter(w=>w.s>pr.s&&wt(w)=='lock').length,mi=rem/1609.34;
+$('#hi').textContent=rem<25?'You have arrived':(wt(nx)=='lock'&&nx.s-pr.s<300?'Lock ahead':'Continue on '+sg.n);
+$('#hs').textContent=rem<25?wn(WP[WP.length-1]):`to ${(CAT[wt(nx)]||[''])[0]} ${wn(nx)} · ${Math.max(0,Math.round(nx.s-pr.s))} m${pr.d>80?' · off route':''}`;
+const v=avgV();$('#et').textContent=tf(rem/v/3600+lk*5/60);$('#ed').textContent=`${mi.toFixed(1)} mi · ${lk} lock${lk==1?'':'s'} · ${(v*2.23694).toFixed(1)} mph${TS.t>60?' avg':' est.'} · arrive ${new Date(Date.now()+(rem/v+lk*300)*1e3).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`}
 function startNav(){startCompass();if(RC.length<2)return;if(!pos){const q=pointAt(0);setPos(q.lat,q.lon,q.h);toast('No GPS: starting at route start. Use 🛠 to spoof.')}
-TS={d:0,t:0,last:null};nav=true;follow=true;document.body.classList.add('nav');hide();cam();hud();fab()}
-$('#ex').onclick=()=>{nav=false;document.body.classList.remove('nav');RT=[];RC=[];setRoute();vis();map.easeTo({bearing:0,pitch:45,zoom:15,padding:{top:0,bottom:0,left:0,right:0}});setMode('explore');fab()};
+TS={d:0,t:0,last:null};wake();nav=true;follow=true;document.body.classList.add('nav');hide();cam();hud();fab()}
+$('#ex').onclick=()=>{nav=false;try{WL&&WL.release()}catch(e){}document.body.classList.remove('nav');RT=[];RC=[];setRoute();vis();map.easeTo({bearing:0,pitch:45,zoom:15,padding:{top:0,bottom:0,left:0,right:0}});setMode('explore');fab()};
 map.on('dragstart',e=>{if(nav&&e.originalEvent){follow=false;toast('Tap ◎ to recenter')}});
 // sheet
 const sheet=$('#sheet');
@@ -207,29 +207,50 @@ function saved(){setMode('saved');RT=[];RC=[];setRoute();show('<h2>Saved places<
 function go(a,b){setMode('go');if(b)Tt=b;if(a)F=a;else if(pos)F=near(pos);if(F==Tt)F=Tt=='lv'?'hert':'lv';
 const o=s=>Object.keys(P).map(k=>`<option value="${k}"${k==s?' selected':''}>${P[k][0]}</option>`).join('');$('#f').innerHTML=o(F);$('#t').innerHTML=o(Tt);calc()}
 // optional places layer (OpenStreetMap via Overpass), off by default, loaded on first use
-const CAT={pub:['🍺','Pub / bar','#b35c00'],cafe:['☕','Café / restaurant','#8d6e63'],shop:['🛒','Supermarket / shop','#2e7d32'],water:['🚰','Water point','#039be5'],san:['🚽','Sanitary station','#6d4c41'],fuel:['⛽','Fuel / pump-out','#c62828'],yard:['🔧','Boatyard / marina','#5e35b1'],moor:['⚓','Mooring','#f9ab00']};
+const CAT={pub:['🍺','Pub / bar','#b35c00'],cafe:['☕','Café / restaurant','#8d6e63'],shop:['🛒','Supermarket / shop','#2e7d32'],takeaway:['🥡','Takeaway','#ef6c00'],water:['🚰','Water point','#039be5'],san:['🚽','Sanitary station','#6d4c41'],fuel:['⛽','Fuel / pump-out','#c62828'],yard:['🔧','Boatyard / marina','#5e35b1'],chandler:['🧰','Chandlery / boat shop','#3949ab'],moor:['⚓','Mooring','#f9ab00'],toilet:['🚻','Toilets','#00897b'],shower:['🚿','Showers','#26a69a'],waste:['🗑️','Rubbish / recycling','#689f38'],laundry:['🧺','Laundrette','#8e24aa'],pharm:['💊','Pharmacy','#d81b60'],atm:['🏧','Cash machine','#546e7a'],station:['🚆','Train station','#1565c0'],lock:['🔒','Lock','#455a64'],bridge:['🌉','Bridge','#795548'],mov:['↕️','Movable bridge','#a1887f'],tunnel:['🕳️','Tunnel','#37474f'],portal:['⭕','Tunnel portal','#607d8b'],aq:['🏛️','Aqueduct','#00838f'],junc:['🔀','Junction','#ad1457'],wind:['↩️','Winding hole','#7b1fa2'],weir:['⚠️','Weir / sluice','#e65100'],wharf:['🏗️','Wharf','#8d6e63'],slip:['🛶','Slipway','#0277bd'],lift:['🛗','Boat lift','#6a1b9a'],dock:['🏭','Dock / dry dock','#4e342e'],pump:['⚙️','Pumping station','#78909c'],res:['💧','Reservoir','#0288d1'],lake:['🎣','Lake / fishery','#2e7d32']};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let POI=[],POIGJ=null,pAct=new Set(),pMo=true,pLoad=0;
 const OVP=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
+// canal features (locks, tunnels, aqueducts, junctions, winding holes, named bridges): live from OpenStreetMap, cached
+const FCAT=['lock','bridge','mov','tunnel','portal','aq','junc','wind','weir','wharf','slip','lift','dock','pump','res','lake'],BB='(51.45,-0.40,51.82,0.05)';
+const CQ='(way["waterway"="canal"]["boat"!="no"]["disused"!="yes"]["abandoned"!="yes"]["intermittent"!="yes"]["name"!~"New River|Brent|Dock"]'+BB+';way["waterway"="river"]["name"~"Navigation"]["boat"!="no"]'+BB+';)->.c;';
+let FTR=[],JX=[],FT=[],ALLP=[],fLoad=0;
+const wn=w=>w.n||P[w.k][0],wt=w=>w.t||P[w.k][3];
+function deriveJX(){JX=[];for(let i=0;i<ADJ.length;i++){const a=ADJ[i];if(a.length<3)continue;const ns=[...new Set(a.map(e=>e[2]))].filter(n=>NM[n]!='Canal');if(ns.length<2)continue;
+const k=ns.slice(0,2).map(n=>NM[n]).sort().join(' / ')+' junction';if(JX.some(j=>j[3]==k&&dm({lat:j[1],lon:j[2]},{lat:LA[i],lon:LO[i]})<150))continue;JX.push(['junc',LA[i],LO[i],k,0,'','',i])}}
+function fitRC(){if(RC.length<2)return;const b=new maplibregl.LngLatBounds();RC.forEach(q=>b.extend([q.lon,q.lat]));map.fitBounds(b,{padding:{top:150,bottom:290,left:40,right:70},maxZoom:15.5,duration:700})}
+function ftDone(){FT=mergeFT();poiApply();if(mode=='go'&&!nav&&RC.length>1)calc()}
+async function loadFT(){if(fLoad||FTR.length)return;fLoad=1;
+{const c=cget('cutft2');if(c){FTR=c;fLoad=0;return ftDone()}}
+const q=`[out:json][timeout:120];${CQ}(way.c["lock"="yes"];way.c["tunnel"="yes"];way.c["bridge"="aqueduct"];node["waterway"="lock_gate"](around.c:25);nwr["waterway"="turning_point"](around.c:40);nwr["leisure"="slipway"](around.c:60);way["bridge"="movable"](around.c:15);way["bridge:movable"](around.c:15);way["bridge"~"^(yes|movable|viaduct)$"]["name"](around.c:12););out center tags;`;
+const r5=n=>+n.toFixed(5),fc=t=>t.lock=='yes'?'lock':t.waterway=='lock_gate'?'gate':(t.waterway&&t.tunnel=='yes')?'tunnel':t.bridge=='aqueduct'?'aq':t.waterway=='turning_point'?'wind':t.leisure=='slipway'?'slip':(t.bridge=='movable'||t['bridge:movable'])?'mov':t.bridge?'bridge':null,
+nm=(c,t)=>t.name||(c=='lock'?((t.lock_ref||t.ref)?'Lock '+(t.lock_ref||t.ref):'Lock'):c=='tunnel'?'Tunnel':c=='aq'?'Aqueduct':c=='wind'?'Winding hole':c=='slip'?'Slipway':c=='mov'?'Movable bridge':'Bridge');
+for(const u of OVP){try{const r=await fetch(u,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});if(!r.ok)throw 0;const els=(await r.json()).elements,out=[];
+els.forEach(e=>{const t=e.tags||{},la=e.lat??(e.center&&e.center.lat),lo=e.lon??(e.center&&e.center.lon),c=fc(t);if(la==null||!c||c=='gate')return;
+if(c=='lock'&&out.some(o=>o[0]=='lock'&&dm({lat:o[1],lon:o[2]},{lat:la,lon:lo})<12))return;out.push([c,r5(la),r5(lo),nm(c,t),0,'','',null])});
+const L=out.filter(o=>o[0]=='lock');
+els.forEach(e=>{if(!e.tags||e.tags.waterway!='lock_gate'||e.lat==null)return;const g={lat:e.lat,lon:e.lon};if(L.some(o=>dm(g,{lat:o[1],lon:o[2]})<80))return;const o=['lock',r5(e.lat),r5(e.lon),'Lock',0,'','',null];out.push(o);L.push(o)});
+if(!out.length)throw 0;FTR=out;cset('cutft2',out);fLoad=0;ftDone();toast(`${out.filter(o=>o[0]=='lock').length} locks loaded`);return}catch(e){}}
+fLoad=0;{const s=cget('cutft2',1);if(s)FTR=s;else toast('Could not load locks and features');ftDone()}}
 const poiFilter=()=>{const f=['in',['get','c'],['literal',[...pAct]]];return pMo?['all',f,['any',['==',['get','m'],1],['!',['in',['get','c'],['literal',['pub','cafe','shop']]]]]]:f};
-function layCounts(){Object.keys(CAT).forEach(k=>{const a=POI.filter(q=>q[0]==k),e=$('#n_'+k);if(e)e.textContent=POI.length?`(${a.length}${['pub','cafe','shop'].includes(k)?', '+a.filter(q=>q[4]).length+' ⚓':''})`:''})}
-function poiApply(){POIGJ={type:'FeatureCollection',features:POI.map((q,i)=>({type:'Feature',properties:{c:q[0],n:q[3],m:q[4],h:q[5],w:q[6],i},geometry:{type:'Point',coordinates:[q[2],q[1]]}}))};map.getSource('poi')?.setData(POIGJ);if(map.getLayer('poi'))map.setFilter('poi',poiFilter());layCounts()}
+function layCounts(){Object.keys(CAT).forEach(k=>{const a=ALLP.filter(q=>q[0]==k),e=$('#n_'+k);if(e)e.textContent=ALLP.length?`(${a.length}${['pub','cafe','shop'].includes(k)?', '+a.filter(q=>q[4]).length+' ⚓':''})`:''});const ds=Object.values(DT).filter(Boolean),e=$('#lyd');if(e)e.textContent=ds.length?'Data refreshed '+new Date(Math.min(...ds)).toLocaleDateString([],{day:'numeric',month:'short'})+'. Refreshes weekly.':''}
+function poiApply(){ALLP=POI.concat(FT);POIGJ={type:'FeatureCollection',features:ALLP.map((q,i)=>({type:'Feature',properties:{c:q[0],n:q[3],m:q[4],h:q[5],w:q[6],s:q[8]||'',i},geometry:{type:'Point',coordinates:[q[2],q[1]]}}))};map.getSource('poi')?.setData(POIGJ);if(map.getLayer('poi'))map.setFilter('poi',poiFilter());layCounts()}
 async function loadPOI(){if(POI.length||pLoad)return;pLoad=1;
-try{const c=localStorage.getItem('cutpoi1');if(c){POI=JSON.parse(c);pLoad=0;return poiApply()}}catch(e){}
+{const c=cget('cutpoi2');if(c){POI=c;pLoad=0;return poiApply()}}
 toast('Loading places from OpenStreetMap…');
-const bb='(51.45,-0.40,51.82,0.05)',q=`[out:json][timeout:120];(way["waterway"="canal"]["boat"!="no"]["disused"!="yes"]["abandoned"!="yes"]["intermittent"!="yes"]["name"!~"New River|Brent|Dock"]${bb};way["waterway"="river"]["name"~"Navigation"]["boat"!="no"]${bb};)->.c;(nwr(around.c:60)["amenity"~"^(pub|bar|restaurant|cafe)$"];nwr(around.c:60)["shop"~"^(supermarket|convenience)$"];nwr(around.c:120)["waterway"~"^(water_point|sanitary_dump_station|fuel|boatyard)$"];nwr(around.c:120)["leisure"="marina"];nwr(around.c:60)["mooring"~"^(yes|public|customers|free|visitor)$"];);out center tags;`;
+const bb='(51.45,-0.40,51.82,0.05)',q=`[out:json][timeout:120];(way["waterway"="canal"]["boat"!="no"]["disused"!="yes"]["abandoned"!="yes"]["intermittent"!="yes"]["name"!~"New River|Brent|Dock"]${bb};way["waterway"="river"]["name"~"Navigation"]["boat"!="no"]${bb};)->.c;(nwr(around.c:60)["amenity"~"^(pub|bar|restaurant|cafe)$"];nwr(around.c:60)["shop"~"^(supermarket|convenience)$"];nwr(around.c:120)["waterway"~"^(water_point|sanitary_dump_station|fuel|boatyard)$"];nwr(around.c:120)["leisure"="marina"];nwr(around.c:60)["amenity"~"^(toilets|shower|waste_disposal|recycling|fast_food|pharmacy|atm)$"];nwr(around.c:60)["shop"~"^(laundry|boat)$"];nwr(around.c:250)["railway"~"^(station|halt)$"];nwr(around.c:60)["mooring"~"^(yes|public|customers|free|visitor)$"];);out center tags;`;
 const mo=t=>/^(yes|public|customers|free|visitor)$/.test(t.mooring||'')||t['mooring:customers']=='yes',
-cl=t=>t.waterway=='water_point'?'water':t.waterway=='sanitary_dump_station'?'san':t.waterway=='fuel'?'fuel':(t.waterway=='boatyard'||t.leisure=='marina')?'yard':/^(pub|bar)$/.test(t.amenity)?'pub':/^(cafe|restaurant)$/.test(t.amenity)?'cafe':/^(supermarket|convenience)$/.test(t.shop)?'shop':mo(t)?'moor':null;
+cl=t=>t.waterway=='water_point'?'water':t.waterway=='sanitary_dump_station'?'san':t.waterway=='fuel'?'fuel':(t.waterway=='boatyard'||t.leisure=='marina')?'yard':/^(pub|bar)$/.test(t.amenity)?'pub':/^(cafe|restaurant)$/.test(t.amenity)?'cafe':/^(supermarket|convenience)$/.test(t.shop)?'shop':t.amenity=='toilets'?'toilet':t.amenity=='shower'?'shower':/^(waste_disposal|recycling)$/.test(t.amenity)?'waste':t.shop=='laundry'?'laundry':t.shop=='boat'?'chandler':t.amenity=='fast_food'?'takeaway':t.amenity=='pharmacy'?'pharm':t.amenity=='atm'?'atm':/^(station|halt)$/.test(t.railway)?'station':mo(t)?'moor':null;
 for(const u of OVP){try{const r=await fetch(u,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});if(!r.ok)throw 0;const j=await r.json(),out=[];
 j.elements.forEach(e=>{const t=e.tags||{},la=e.lat??(e.center&&e.center.lat),lo=e.lon??(e.center&&e.center.lon),c=cl(t);if(la==null||!c)return;out.push([c,+la.toFixed(5),+lo.toFixed(5),t.name||'',mo(t)?1:0,t.opening_hours||'',t.website||t['contact:website']||''])});
-if(!out.length)throw 0;POI=out;try{localStorage.setItem('cutpoi1',JSON.stringify(POI))}catch(e){}pLoad=0;poiApply();toast(`${POI.length} places loaded`);return}catch(e){}}
-pLoad=0;toast('Could not load places. Try again later.')}
+if(!out.length)throw 0;POI=out;cset('cutpoi2',POI);pLoad=0;poiApply();toast(`${POI.length} places loaded`);return}catch(e){}}
+pLoad=0;{const s=cget('cutpoi2',1);if(s){POI=s;poiApply();toast('Offline: using saved places')}else toast('Could not load places. Try again later.')}}
 function nv(la0,lo0){const c=Math.cos(la0*rad);let b=0,bd=1e9;for(let i=0;i<LA.length;i++){const d=(LA[i]-la0)**2+((LO[i]-lo0)*c)**2;if(d<bd){bd=d;b=i}}return b}
 function poiSheet(f){const p=f.properties,c=CAT[p.c];sel=null;vis();setMode('explore');
-show(`<h2>${esc(p.n||c[1])}</h2><div class="sub">${c[0]} ${c[1]}</div><p>${p.m?'⚓ Tagged in OpenStreetMap as allowing mooring.':'No mooring tag in OpenStreetMap. Check signage.'}</p>${p.h?`<p>🕒 ${esc(p.h)}</p>`:''}${/^https?:\/\//.test(p.w||'')?`<p><a href="${esc(p.w)}" target="_blank" rel="noopener">Website</a></p>`:''}<div class="row">${LA.length?`<button class="pri" onclick="poiGo(${p.i})">➤ Directions</button>`:''}</div><small>Community data from OpenStreetMap contributors. May be out of date.</small>`)}
-function poiGo(i){const q=POI[i],b=nv(q[1],q[2]);P.xp=[q[3]||CAT[q[0]][1],LA[b],LO[b],'moor','Selected place'];SNAP.xp=b;go(null,'xp')}
-$('#lay').innerHTML=`<div class="r"><b>📍 Places along the cut</b><button class="x" id="lyx">✕</button></div>${Object.entries(CAT).map(([k,v])=>`<label><input type="checkbox" data-c="${k}"><i style="background:${v[2]}"></i>${v[0]} ${v[1]} <small id="n_${k}"></small></label>`).join('')}<label><input type="checkbox" id="lmo" checked> ⚓ Pubs, cafés & shops: mooring-tagged only</label><small>All off by default. A gold ring means tagged for mooring in OpenStreetMap. Tagging is patchy, so always check signage.</small>`;
-$('#lay').onchange=e=>{const t=e.target;if(t.dataset.c){t.checked?pAct.add(t.dataset.c):pAct.delete(t.dataset.c);if(t.checked)loadPOI()}else if(t.id=='lmo')pMo=t.checked;if(map.getLayer('poi'))map.setFilter('poi',poiFilter())};
+show(`<h2>${esc(p.n||c[1])}</h2><div class="sub">${c[0]} ${c[1]}</div>${FCAT.includes(p.c)?'':`<p>${p.m?'⚓ Tagged in OpenStreetMap as allowing mooring.':'No mooring tag in OpenStreetMap. Check signage.'}</p>`}${p.h?`<p>${FCAT.includes(p.c)?'':'🕒 '}${esc(p.h)}</p>`:''}${/^https?:\/\//.test(p.w||'')?`<p><a href="${esc(p.w)}" target="_blank" rel="noopener">Website</a></p>`:''}<div class="row">${LA.length?`<button class="pri" onclick="poiGo(${p.i})">➤ Directions</button>`:''}</div><small>${p.s=='crt'?'Canal &amp; River Trust open data (Open Government Licence).':'Community data from OpenStreetMap contributors. May be out of date.'}</small>`)}
+function poiGo(i){const q=ALLP[i],b=nv(q[1],q[2]);P.xp=[q[3]||CAT[q[0]][1],LA[b],LO[b],'moor','Selected place'];SNAP.xp=b;go(null,'xp')}
+$('#lay').innerHTML=`<div class="r"><b>📍 Places along the cut</b><button class="x" id="lyx">✕</button></div>${Object.entries(CAT).map(([k,v])=>(k==FCAT[0]?'<hr><b>Canal features</b><br><small>Locks are always used for lock counts and ETA. Official data: Canal & River Trust. Other: OpenStreetMap.</small>':k=='toilet'?'<hr><b>Boater services</b>':'')+`<label><input type="checkbox" data-c="${k}"><i style="background:${v[2]}"></i>${v[0]} ${v[1]} <small id="n_${k}"></small></label>`).join('')}<hr><label><input type="checkbox" id="lmo" checked> ⚓ Pubs, cafés & shops: mooring-tagged only</label><small>All off by default. A gold ring means tagged for mooring in OpenStreetMap. Tagging is patchy, so always check signage.</small><br><small id="lyd"></small>`;
+$('#lay').onchange=e=>{const t=e.target;if(t.dataset.c){t.checked?pAct.add(t.dataset.c):pAct.delete(t.dataset.c);if(t.checked)FCAT.includes(t.dataset.c)?(loadFT(),loadCRT()):loadPOI()}else if(t.id=='lmo')pMo=t.checked;if(map.getLayer('poi'))map.setFilter('poi',poiFilter())};
 $('#lyb').onclick=()=>$('#lay').hidden=!$('#lay').hidden;$('#lyx').onclick=()=>$('#lay').hidden=true;
 // ETA speed: 3 mph prior worth 10 min of cruising, blended with actual moving average (stops excluded)
 let TS={d:0,t:0,last:null};
@@ -242,13 +263,15 @@ while(h.length){const[du,u]=hpop(h);if(du>d[u])continue;if(u==t)break;for(const[
 if(d[t]>=1e12)return 0;const ix=[t];for(let c=t;c!=s;c=pv[c])ix.unshift(pv[c]);
 RC=ix.map(i=>({lat:LA[i],lon:LO[i]}));for(let i=1;i<RC.length;i++)cd[i]=cd[i-1]+dm(RC[i-1],RC[i]);
 ix.forEach((v,i)=>{if(i&&(!SG.length||SG[SG.length-1].n!=NM[pe[v]]))SG.push({n:NM[pe[v]],s:cd[i-1]})});
-const on=new Map(ix.map((v,i)=>[v,i]));Object.keys(P).forEach(k=>{const i=on.get(SNAP[k]);if(i!=null)WP.push({k,s:cd[i]})});WP.sort((x,y)=>x.s-y.s);return 1}
+const on=new Map(ix.map((v,i)=>[v,i])),RTY=['lock','tunnel','aq','junc','wind'],real=FT.some(f=>f[0]=='lock');
+Object.keys(P).forEach(k=>{if(real&&['lock','tunnel','junc'].includes(P[k][3])&&k!=a&&k!=b)return;const i=on.get(SNAP[k]);if(i!=null)WP.push({k,s:cd[i]})});
+FT.forEach(f=>{if(!RTY.includes(f[0]))return;if(f[7]==null)f[7]=nv(f[1],f[2]);const i=on.get(f[7]);if(i!=null)WP.push({k:'f',s:cd[i],n:f[3],t:f[0]})});WP.sort((x,y)=>x.s-y.s);return 1}
 function calc(){RT=[];RC=[];WP=[];SG=[];cd=[0];sim.s=0;let r=F!=Tt&&netRoute(F,Tt),ap=0;
 if(!r&&F!=Tt){const o=route(F,Tt);if(o){ap=1;RC=o.path.map(ll);for(let i=1;i<RC.length;i++)cd[i]=cd[i-1]+dm(RC[i-1],RC[i]);WP=o.path.map((k,i)=>({k,s:cd[i]}));o.ws.forEach((w,i)=>{if(!SG.length||SG[SG.length-1].w!=w)SG.push({n:W[w][0],w,s:cd[i]})});r=1}}
 WPS=new Set(WP.map(w=>w.k));setRoute();vis();
 if(!r)return show('<h2>No route</h2><p class="sub">Pick two different places.</p>');
-const tot=cd[cd.length-1],mi=tot/1609.34,lk=WP.filter(w=>P[w.k][3]=='lock').length;
-show(`<div class="big"><b>${tf(mi/3+lk*5/60)}</b> <span class="sub">${mi.toFixed(1)} mi · ${lk} lock${lk==1?'':'s'}${ap?' · approx.':''}</span></div><div class="row"><button class="pri" onclick="startNav()">▶ Start</button></div><ol>${SG.map((g,j)=>{const e=j<SG.length-1?SG[j+1].s:tot,l=[...WP].reverse().find(w=>w.s>g.s&&w.s<=e+1)||WP[WP.length-1];return`<li>Follow <b>${g.n}</b> to <b>${P[l.k][0]}</b> <small>${((e-g.s)/1609.34).toFixed(1)} mi</small></li>`}).join('')}</ol>`);fit(WP.map(w=>w.k))}
+const tot=cd[cd.length-1],mi=tot/1609.34,lk=WP.filter(w=>wt(w)=='lock').length;
+show(`<div class="big"><b>${tf(mi/3+lk*5/60)}</b> <span class="sub">${mi.toFixed(1)} mi · ${lk} lock${lk==1?'':'s'}${ap?' · approx.':''}</span></div><div class="row"><button class="pri" onclick="startNav()">▶ Start</button></div><p><a href="https://canalrivertrust.org.uk/notices" target="_blank" rel="noopener">Check CRT notices before you go</a></p><ol>${SG.map((g,j)=>{const e=j<SG.length-1?SG[j+1].s:tot,W2=WP.filter(w=>w.s>g.s&&w.s<=e+1),l=[...W2].reverse().find(w=>!/^(Lock|Tunnel|Aqueduct|Winding hole)$/.test(wn(w)))||W2[W2.length-1]||WP[WP.length-1];return`<li>Follow <b>${g.n}</b> to <b>${wn(l)}</b> <small>${((e-g.s)/1609.34).toFixed(1)} mi</small></li>`}).join('')}</ol>`);if(!nav)fitRC()}
 $('#f').onchange=e=>{F=e.target.value;calc()};$('#t').onchange=e=>{Tt=e.target.value;calc()};
 $('#dx').onclick=()=>{RT=[];RC=[];setRoute();vis();hide();setMode('explore')};
 $('#gb').onclick=()=>go(null,sel||Tt);
