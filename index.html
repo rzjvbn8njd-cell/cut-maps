@@ -59,7 +59,7 @@ body.nav #hud{display:block}body.nav #eta{display:flex}body.nav #top,body.nav #d
 #lay label{display:flex;gap:8px;align-items:center;margin:7px 0}#lay i{width:12px;height:12px;border-radius:50%;display:inline-block;flex:none}
 body.nav #lay{display:none}
 </style></head><body><div id="app">
-<div id="map"></div><div id="attr">© OpenStreetMap contributors · OpenFreeMap · Contains Canal &amp; River Trust data (OGL v3) · v7</div>
+<div id="map"></div><div id="attr">© OpenStreetMap contributors · OpenFreeMap · Contains Canal &amp; River Trust data (OGL v3) · v7.1</div>
 <div id="top"><div id="sb" class="card"><span>☰</span><input id="q" placeholder="Search the cut" autocomplete="off"><div class="av">C</div></div>
 <div id="res" class="card" hidden></div><div id="chips"></div></div>
 <div id="dir" class="card" hidden><div class="r"><b>⚓ Directions · 3 mph</b><button class="x" id="dx">✕</button></div>
@@ -256,6 +256,36 @@ $('#lyb').onclick=()=>$('#lay').hidden=!$('#lay').hidden;$('#lyx').onclick=()=>$
 let TS={d:0,t:0,last:null};
 function speedTick(lat,lon){if(!nav)return;const n=performance.now(),l=TS.last;if(l){const dt=(n-l.t)/1e3,dd=dm(l,{lat,lon}),v=dd/dt;if(dt>.15&&dt<30&&v>.3&&v<(sim.spoof?40:5)){TS.d+=dd;TS.t+=dt}}TS.last={lat,lon,t:n}}
 const avgV=()=>Math.max(.3,Math.min(sim.spoof?40:2.5,(1.34*600+TS.d)/(600+TS.t)));
+// cache with weekly expiry (stale copy used if offline)
+const DT={};
+const cget=(k,stale)=>{try{const o=JSON.parse(localStorage.getItem(k)||'null');if(!o)return null;DT[k]=o.t;return stale||Date.now()-o.t<6048e5?o.d:null}catch(e){return null}};
+const cset=(k,d)=>{DT[k]=Date.now();try{localStorage.setItem(k,JSON.stringify({t:Date.now(),d}))}catch(e){}};
+// Canal & River Trust official open data (Open Government Licence), resolved via their open data API
+const CRTH='https://data-canalrivertrust.opendata.arcgis.com/api/search/v1/collections/dataset/items?limit=100',CRS='https://services.arcgis.com/DknzyjEEie5tEW0u/arcgis/rest/services/Canal_And_River_Trust_';
+const CRTD=[['lock',/_locks_view/i,'Lock'],['bridge',/_bridges_view/i,'Bridge'],['aq',/_aqueducts_view/i,'Aqueduct'],['portal',/tunnel_portals/i,'Tunnel portal'],['wind',/winding_holes/i,'Winding hole'],['weir',/_weirs_view/i,'Weir'],['weir',/_sluices_view/i,'Sluice'],['wharf',/_wharves_view/i,'Wharf'],['slip',/_slipways_view/i,'Slipway'],['lift',/boat_lift/i,'Boat lift'],['dock',/dry_docks/i,'Dry dock'],['dock',/trust_docks_view/i,'Dock'],['pump',/pumping_stations/i,'Pumping station'],['res',/_reservoirs_view/i,'Reservoir'],['lake',/lakes_ponds/i,'Lake / fishery']];
+const CRU={'Winding hole':'Winding_Holes_View','Wharf':'Wharves_View','Tunnel portal':'Tunnel_Portals_View','Weir':'Weirs_View','Slipway':'Slipways_View','Reservoir':'Reservoirs_View','Lake / fishery':'Lakes_Ponds_Fisheries_View'};
+let CRTR=[],crLoad=0;
+const r5=n=>+n.toFixed(5),gv=(p,re)=>{const k=Object.keys(p).find(k=>re.test(k)&&p[k]!=null&&p[k]!=='');return k?String(p[k]):''};
+async function loadCRT(){if(crLoad||CRTR.length)return;crLoad=1;const c0=cget('cutcrt1');if(c0){CRTR=c0;crLoad=0;return ftDone()}
+let items=[];try{items=(await (await fetch(CRTH)).json()).features||[]}catch(e){}
+const bb=encodeURIComponent('-0.40,51.45,0.05,51.82'),out=[];
+await Promise.all(CRTD.map(async([c,re,lab])=>{try{const it=items.find(i=>re.test(i.properties.title||'')),u=(it&&it.properties.url)||(CRU[lab]&&CRS+CRU[lab]+'/FeatureServer');if(!u)return;
+const j=await (await fetch(`${u}/0/query?where=1%3D1&geometry=${bb}&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=*&outSR=4326&resultRecordCount=2000&f=geojson`)).json();
+(j.features||[]).forEach(f=>{const g=f.geometry,p=f.properties||{};if(!g||!g.coordinates)return;let q=g.coordinates;while(Array.isArray(q[0]))q=q[0];
+const nm=gv(p,/^(asset_?)?name$/i)||gv(p,/name/i)||gv(p,/^(asset_?)?(no|num|number|ref)\w*$/i),
+dt=Object.entries(p).filter(([k,v])=>v!=null&&v!==''&&typeof v!='object'&&!/(date|time|edit|created|objectid|globalid|fid|shape|gis|^x$|^y$|lat|lon|geom|length|area)/i.test(k)&&String(v).length<70).slice(0,5).map(([k,v])=>k.replace(/_/g,' ')+': '+v).join(' · ');
+out.push([c,r5(q[1]),r5(q[0]),nm||lab,0,dt,'',null,'crt'])})}catch(e){}}));
+if(out.length){CRTR=out;cset('cutcrt1',out)}else{const s=cget('cutcrt1',1);if(s)CRTR=s}
+crLoad=0;ftDone()}
+// merge: official CRT points replace nearby OSM duplicates of the same type
+function mergeFT(){const have=new Set(CRTR.map(f=>f[0])),R={lock:60,bridge:25,aq:60,wind:30};
+return FTR.filter(f=>!(have.has(f[0])&&R[f[0]]&&CRTR.some(c=>c[0]==f[0]&&dm({lat:c[1],lon:c[2]},{lat:f[1],lon:f[2]})<R[f[0]]))).concat(CRTR,JX)}
+// leaving the route: reroute from the nearest canal point after a few seconds
+let offT=0,lastRR=0,WL=null;
+function offCheck(pr){const n=performance.now();if(pr.d<=80){offT=0;return false}if(!offT)offT=n;
+if(n-offT>8e3&&n-lastRR>2e4&&LA.length&&Tt){const b=nv(pos.lat,pos.lon);if(dm(pos,{lat:LA[b],lon:LO[b]})>300)return false;lastRR=n;offT=0;P.rx=['Current position',LA[b],LO[b],'moor','',''];SNAP.rx=b;F='rx';calc();if(RC.length>1)sim.s=proj(pos).s;toast('Rerouting…');return true}return false}
+async function wake(){try{WL=await navigator.wakeLock.request('screen')}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(nav&&document.visibilityState=='visible')wake()});
 const hp=(h,x)=>{h.push(x);let i=h.length-1;while(i&&h[i][0]<h[(i-1)>>1][0]){const p=(i-1)>>1;[h[i],h[p]]=[h[p],h[i]];i=p}};
 const hpop=h=>{const t=h[0],l=h.pop();if(h.length){h[0]=l;let i=0;for(;;){let c=2*i+1;if(c>=h.length)break;if(c+1<h.length&&h[c+1][0]<h[c][0])c++;if(h[c][0]>=h[i][0])break;[h[i],h[c]]=[h[c],h[i]];i=c}}return t};
 function netRoute(a,b){const s=SNAP[a],t=SNAP[b];if(s==null||t==null||s==t)return 0;const n=LA.length,d=new Float64Array(n).fill(1e12),pv=new Int32Array(n).fill(-1),pe=[],h=[[0,s]];d[s]=0;
